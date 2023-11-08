@@ -11,10 +11,10 @@ ProVerif official website:https://bblanche.gitlabpages.inria.fr/proverif/
 
 * Download ProVerif and put the verification code in the file.
 * Open cmd and enter the ProVerif folder.
-* Verify registration account：proverif  Registration.pv
-* Verify authentication payment：proverif  Authentication.pv
-* Verify migration device：proverif  Migration.pv
-* Verify account suspension：proverif  Suspension.pv
+* Verify registration account: proverif  Registration.pv
+* Verify authentication payment: proverif  Authentication.pv
+* Verify migration device: proverif  Migration.pv
+* Verify account suspension: proverif  Suspension.pv
 
 ## Website of ProVerif Online Verification
 ProVerif online website:http://proverif20.paris.inria.fr/
