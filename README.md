@@ -9,7 +9,8 @@ ProVerif official website:https://bblanche.gitlabpages.inria.fr/proverif/
 
 ## Step of Execution
 
-* Open cmd and enter the extracted folder.
+* Download Proverif and put the verification code in the file.
+* Open cmd and enter the ProVerif folder.
 * Verify registration account：proverif  Registration.pv
 * Verify authentication payment：proverif  Authentication.pv
 * Verify migration device：proverif  Migration.pv
