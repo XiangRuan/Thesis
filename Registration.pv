@@ -1,0 +1,63 @@
+free TPM:channel[private]. 
+free TLS:channel[private].
+free Third:channel[private].
+
+free Userinfo:bitstring[private].
+free CreN:bitstring[private].
+free OTPS:bitstring[private].
+free OTPE:bitstring[private].
+free TOTP:bitstring[private].
+
+event success.
+
+(*Digital Signature*)
+type sskey.
+type spkey.
+fun spk(sskey):spkey.
+fun sign(bitstring,sskey):bitstring.
+reduc forall m:bitstring,k:sskey;getmess(sign(m,k))=m.
+reduc forall m:bitstring,k:sskey;checksign(sign(m,k),spk(k))=m.
+
+(*Asymmetric Encryption*)
+fun pk(sskey):spkey.
+fun aenc(bitstring,spkey):bitstring.
+reduc forall m:bitstring,k:sskey;adec(aenc(m,pk(k)),k)=m.
+
+(*Hash Function*)
+type hash.
+fun H(bitstring):bitstring.
+
+(*Conjunction Function*)
+fun con(bitstring,bitstring):bitstring.
+
+(*Attacker*) 
+query attacker(TPM).
+query attacker(TLS).
+query attacker(con(Userinfo,CreN)).
+query attacker(OTPS).
+query attacker(OTPE).
+query attacker(TOTP).
+
+process 
+ (*Issuing sees Userinfo and CreN*)
+ new SK:sskey;
+ let PK = spk(SK) in out(TPM,PK);
+ let message = con(Userinfo,CreN) in out(TPM,sign(message,SK));
+ out(TLS,PK);
+ out(TLS,sign(message,SK));
+
+ (*Issuing believes alpha / Issuing believes alpha'*)
+ out(Third,con(OTPS,OTPE));
+ let alpha = sign(OTPS,SK) in out(TPM,alpha);
+ let alpha'= H(con(alpha,OTPE)) in out(TPM,alpha');
+ let OTPVerify = con(alpha,alpha') in out(TLS,OTPVerify);
+ if OTPS = checksign(sign(OTPS,SK),PK) then 
+    event success;
+ let beta' = H(con(alpha,OTPE)) in out(TLS,beta');
+ if alpha' = beta' then 
+    event success;
+
+ (*MD believes Issuing once said TOTP*)
+ let M_TOTP = aenc(TOTP,PK) in out(TLS,M_TOTP);
+ out(TPM,M_TOTP);
+ out(TPM,adec(aenc(TOTP,PK),SK))

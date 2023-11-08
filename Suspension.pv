@@ -1,0 +1,35 @@
+free TLS:channel[private]. 
+free URL:channel[private].
+
+free Userinfo:bitstring[private].
+free OTP:bitstring[private].
+
+event success.
+
+(*Symmetric Encryption*)
+type key.
+fun senc(bitstring,key):bitstring.
+reduc forall m:bitstring,k:key;sdec(senc(m,k),k)=m.
+
+(*Hash Function*)
+type hash.
+fun H(bitstring):bitstring.
+
+(*Attacker*)
+query attacker(TLS). 
+query attacker(Userinfo).
+query attacker(OTP). 
+
+process 
+ (*Issuing believes the user once said Userinfo*)
+ new Ksus:key;
+ out(TLS,senc(H(Userinfo),Ksus));
+ out(TLS,sdec(senc(H(Userinfo),Ksus),Ksus));
+ if H(Userinfo)=sdec(senc(H(Userinfo),Ksus),Ksus) then
+    event success;
+
+ (*The user believes the Issuing once said OTP*)
+ new OTP_IB:bitstring;
+ out(URL,H(OTP));
+ if H(OTP)=H(OTP_IB) then
+    event success

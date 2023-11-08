@@ -1,0 +1,71 @@
+free QRCode:channel[private]. 
+free TLS:channel[private].
+free TPM_Old:channel[private].
+free TPM_New:channel[private].
+free NMDIB:channel[private].
+
+free Userinfo:bitstring[private].
+free CreN:bitstring[private].
+free OTP:bitstring[private].
+
+event success.
+
+(*Digital Signature*)
+type sskey.
+type spkey.
+fun spk(sskey):spkey.
+fun sign(bitstring,sskey):bitstring.
+reduc forall m:bitstring,k:sskey;getmess(sign(m,k))=m.
+reduc forall m:bitstring,k:sskey;checksign(sign(m,k),spk(k))=m.
+
+(*Symmetric Encryption*)
+type key.
+fun senc(bitstring,key):bitstring.
+reduc forall m:bitstring,k:key;sdec(senc(m,k),k)=m.
+
+(*Hash Function*)
+type hash.
+fun H(bitstring):bitstring.
+
+(*Conjunction Function*)
+fun con(bitstring,bitstring):bitstring.
+fun con3(bitstring,bitstring,bitstring):bitstring.
+
+(*Attacker*) 
+query attacker(QRCode).
+query attacker(TLS).
+query attacker(TPM_Old).
+query attacker(TPM_New).
+query attacker(NMDIB).
+query attacker(OTP).
+
+process 
+ (*Old Device sees OTP*)
+ new KM:key;
+ out(TLS,senc(OTP,KM));
+ out(TLS,sdec(senc(OTP,KM),KM));
+
+ (*New Decide sees OTP*)
+ new SK:sskey;
+ let signature = sign(con(H(Userinfo),H(CreN)),SK) in out(TPM_Old,signature);
+ new ShK:key;
+ let message = senc(con(senc(signature,KM),OTP),ShK) in out(QRCode,message);
+ out(QRCode,ShK);
+ out(QRCode,sdec(senc(con(senc(signature,KM),OTP),ShK),ShK));
+
+ (*Issuing believes New Device believes OTP*) 
+ out(NMDIB,con3(H(Userinfo),H(CreN),senc(signature,KM)));
+ out(NMDIB,sdec(senc(signature,KM),KM));
+ let PK = spk(SK) in out(NMDIB,PK);
+ out(NMDIB,checksign(sign(con(H(Userinfo),H(CreN)),SK),PK));
+ new Userinfo_IB:bitstring;
+ new CreN_IB:bitstring;
+ if con(H(Userinfo),H(CreN)) = con(H(Userinfo_IB),H(CreN_IB)) then
+   if checksign(sign(con(H(Userinfo),H(CreN)),SK),PK) = con(H(Userinfo_IB),H(CreN_IB)) then 
+       event success;
+ new SK':sskey;
+ let PK' = spk(SK') in out(TPM_New,PK');
+ out(TPM_New,sign(H(OTP),SK'));
+ out(TPM_New,checksign(sign(H(OTP),SK'),PK'));
+ if checksign(sign(H(OTP),SK'),PK') = H(OTP) then
+    event success

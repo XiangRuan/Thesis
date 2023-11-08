@@ -1,0 +1,115 @@
+free TLS:channel[private].
+free Deduct_MD:channel[private].
+free Deduct_DI:channel[private].
+free Issuning:channel[private].
+free TPM:channel[private].
+free Withdraw_MA:channel[private].
+free Withdraw_AP:channel[private].
+free Withdraw_PI:channel[private].
+
+free Userinfo:bitstring[private].
+free MsgTran:bitstring[private].
+free BIC:bitstring[private].
+free CreN:bitstring[private].
+free w:bitstring[private].
+free TOTP:bitstring[private].
+
+event success.
+
+(*Digital Signature*)
+type sskey.
+type spkey.
+fun spk(sskey):spkey.
+fun sign(bitstring,sskey):bitstring.
+reduc forall m:bitstring,k:sskey;getmess(sign(m,k))=m.
+reduc forall m:bitstring,k:sskey;checksign(sign(m,k),spk(k))=m.
+(*Blind message*)
+fun Blind(bitstring,bitstring,bitstring):bitstring.
+reduc forall Bm:bitstring,m:bitstring,BF:bitstring;BlindMessage(Blind(Bm,BF,m))=m.
+reduc forall Bm:bitstring,m:bitstring,BF:bitstring;Unblind(Blind(Bm,BF,m),BF)=m.
+reduc forall Bm:bitstring,m:bitstring,BF:bitstring,k:sskey;PVBS(Blind(Bm,BF,m),spk(k))=m.
+
+(*Symmetric Encryption*)
+type key.
+fun senc(bitstring,key):bitstring.
+reduc forall m:bitstring,k:key;sdec(senc(m,k),k)=m.
+
+(*Hash Function*)
+type hash.
+fun H(bitstring):bitstring.
+
+(*Conjunction Function*)
+fun con(bitstring,bitstring):bitstring.
+fun con3(bitstring,bitstring,bitstring):bitstring.
+fun con4(bitstring,bitstring,bitstring,bitstring):bitstring.
+fun con5(bitstring,bitstring,bitstring,bitstring,bitstring):bitstring.
+
+(*Attacker*) 
+query attacker(TLS).
+query attacker(Deduct_MD).
+query attacker(Deduct_DI).
+query attacker(Issuning).
+query attacker(TPM).
+query attacker(Withdraw_MA).
+query attacker(Withdraw_AP).
+query attacker(Withdraw_PI).
+query attacker(Userinfo).
+query attacker(MsgTran).
+query attacker(CreN).
+query attacker(TOTP).
+
+process
+ (*Merchant sees MsgTran*)
+ new KMM:key;
+ let Transaction_v1 = con5(H(Userinfo),MsgTran,BIC,H(CreN),w) in out(TLS,senc(Transaction_v1,KMM));
+ out(TLS,sdec(senc(Transaction_v1,KMM),KMM));
+ 
+ (*Mobile device believes issuing once said MsgTran*)
+ let Transaction_v2 = con5(H(Userinfo),H(MsgTran),BIC,H(CreN),w) in out(Deduct_MD,Transaction_v2);
+ let Transaction_v3 = con3(H(Userinfo),BIC,H(CreN)) in out(Deduct_MD,Transaction_v3);
+ if Transaction_v3 = con3(H(Userinfo),BIC,H(CreN)) then
+    event success;
+ let Transaction_v4 = con4(H(Userinfo),H(MsgTran),H(CreN),w) in out(Deduct_DI,Transaction_v4);
+ let Transaction_v5 = con(H(Userinfo),H(CreN)) in out(Deduct_DI,Transaction_v5);
+ if Transaction_v5 = con(H(Userinfo),H(CreN)) then
+	event success;
+ out(Issuning,BlindMessage(Blind(con(H(MsgTran),H(CreN)),H(H(TOTP)),con(H(H(Userinfo)),w))));
+ let Transaction_v6 = con(H(H(Userinfo)),w) in out(Issuning,Transaction_v6);
+ if Transaction_v6 = con(H(H(Userinfo)),w) then
+    event success;
+ out(Issuning,Unblind(Blind(con(H(MsgTran),H(CreN)),H(H(TOTP)),con(H(H(Userinfo)),w)),H(H(TOTP))));
+ let Verify_v1 = con(H(MsgTran),H(CreN)) in out(Issuning,Verify_v1);
+ if Verify_v1 = con(H(MsgTran),H(CreN)) then
+    event success;
+ 
+ (*Merchant believes issuing once said signature*)
+ new SK:sskey;
+ let signature = sign(BlindMessage(Blind(con(H(MsgTran),H(CreN)),H(H(TOTP)),con(H(H(Userinfo)),w))),SK) in out(TPM,signature);
+ out(Issuning,signature);
+ out(Deduct_DI,con(signature,H(Userinfo)));
+ let Verify_v2 = H(Userinfo) in out(Deduct_DI,Verify_v2);
+ if Verify_v2 = H(Userinfo) then
+	event success;
+ out(Deduct_MD,con(signature,H(Userinfo)));
+ let Verify_v3 = H(Userinfo) in out(Deduct_MD,Verify_v3);
+ if Verify_v3 = H(Userinfo) then
+	event success;
+
+ (*Acquirer sees MessageVerify*)
+ new KMA:key;
+ let Withdraw_v1 = senc(con3(H(Userinfo),signature,w),KMA) in out(Withdraw_MA,Withdraw_v1);
+ out(Withdraw_MA,sdec(Withdraw_v1,KMA)); 
+ out(Withdraw_AP,signature);
+ let Withdraw_v2 = signature in out(Withdraw_PI,Withdraw_v2);
+ if Withdraw_v2 = signature then
+	event success;
+ let PK = spk(SK) in out(Withdraw_PI,PK);
+ out(Withdraw_PI,PVBS(Blind(con(H(MsgTran),H(CreN)),H(H(TOTP)),con(H(H(Userinfo)),w)),PK));
+ let Withdraw_v3 = con(H(H(Userinfo)),w) in out(Withdraw_PI,Withdraw_v3);
+ if Withdraw_v3 = con(H(H(Userinfo)),w) then
+    event success;
+ out(Withdraw_PI,Withdraw_v3);
+ out(Withdraw_AP,Withdraw_v3);
+ let Withdraw_v4 = con(H(H(Userinfo)),w) in out(Withdraw_MA,Withdraw_v4);
+ if Withdraw_v4 = Withdraw_v3 then
+	event success
