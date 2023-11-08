@@ -4,6 +4,8 @@ Verify that the protocol proposed in the master's thesis is secure.
 
 Thesis title：Mobile Payment Authentication Framework based on FIDO2 and Zero Trust Architecture
 
+Thesis author: Xiang-Ting Ruan (ruanxiangting@gmail.com)
+
 ## Execute Environment
 ProVerif official website:https://bblanche.gitlabpages.inria.fr/proverif/
 
